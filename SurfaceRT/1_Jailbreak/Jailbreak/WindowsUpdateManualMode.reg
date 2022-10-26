@@ -1,0 +1,8 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update]
+"AUOptions"=dword:00000001
+"CachedAUOptions"=dword:00000001
+"ElevateNonAdmins"=dword:00000001
+"ForcedReboot"=dword:00000002
+"IncludeRecommendedUpdates"=dword:00000001
