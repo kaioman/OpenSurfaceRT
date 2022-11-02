@@ -1,0 +1,37 @@
+■事前準備
+
+①UEFIファームウェア設定でSecureBootを無効にする(TPMは有効のままとする)
+
+■クリーンインストール
+
+①以下のサイトでisoファイルをダウンロードする
+https://www.microsoft.com/ja-jp/software-download/windows11
+
+②rufusを使用してUSBメモリにisoファイルを書き込む
+　⇒スタートボタン押下時にTPM2.0のチェックを無効化するチェックボックスがあるのでチェックOnにする
+
+③USBからブートする
+
+④インストールを進める
+　パーテーションは一旦全て削除
+　空きパーテーションをインストール先に指定
+　
+⑤最初、内蔵wifiを認識しないので一旦ネットワーク設定はスキップ
+
+⑥windows11のデスクトップ外付けの無線LANアダプタ(USB)を挿入
+
+⑦インターネットに接続できたらwindowsupdateを実行する⇒再起動
+
+⑧再起動後、wifiが認識されているはずなので外付け無線LANアダプタを外す
+
+■アップグレード
+
+①メディア作成ツール作成
+
+②regeditにて以下を作成
+　キー：HKEY_LOCAL_MACHINE\SYSTEM\Setup\MoSetup
+　名前：AllowUpgradesWithUnsupportedTPMOrCPU
+　種類：REG_DWORD
+　値：1
+　
+③UFEIファームウェア設定でTPMを有効にする
