@@ -1,0 +1,81 @@
+<SurfaceRTについて>
+
+<確認事項>
+Securebootが無効になっているか
+⇒WindowsRTを起動してファイル名を指定して実行で"msinfo32.exe"を起動
+　ここでSecure boot stateがoffになっていればセキュアブートは無効になっている
+　有効になっている場合はJailbreakを行い、セキュアブートを無効にする必要がある
+　(そうしないとUSBメモリからのブートができない)
+　
+<前準備>
+1.rasberry pi imagerのインストール
+
+2.rasbianイメージのダウンロード
+　https://www.raspberrypi.com/software/operating-systems/#raspberry-pi-desktop
+　Raspberry Pi OS (Legacy) with desktopにあるDownloadボタンを押下
+　
+3.rasberry pi imagerを使ってUSBメモリにrasberry pi imageを書き込む
+　書込み先を注意すること
+　
+4.USB-Linuxブート用のファイル用意
+　①statup.nsh
+　②efiドライバ
+　③zImage
+　④Sufaceのlinux用モジュールとファームウェア
+　⑤デバイスツリーファイル(拡張子dtb)
+
+5.4で用意したファイルを3で書き込んだUSBメモリのbootパーテーションにコピーする
+　USBメモリに書き込んだ段階でbootパーテーションが何らかのドライブレターに割り当てられているはず
+
+<rasbianインストール>
+
+1.SurfaceにUSBメモリをセット
+
+2.ボリュームダウンボタンを押しながら電源ON
+
+3.SURFACEのロゴが表示されたらボリュームダウンボタンを離す
+
+4.rasbianの初期設定が始まる
+　国と言語を選択する
+　「USキーボードを使用する」をチェック
+　ユーザーの設定
+　UPDATEはスキップする
+　
+5.rasbianのデスクトップが表示される
+　この時点ではUSBメモリ内のrootfsパーテーションがブートされた状態
+　
+6.アクセサリ->SD Card Copierを選択
+
+7.コピー元をUSBメモリ、コピー先をeMMC(/dev/mmcblb0)とし、「パーテーションを新規作成する」にチェックを入れて開始
+　コピーが開始されるので暫く待つ(5分程度)
+　
+8.コピー先のbootパーテーションにあるstartup.nshをTextEditorで編集する
+　rootを/dev/mmcblk0p2に変更する（eMMC側の第2パーテーション(rasbianが入っている))
+　USBメモリ内のstartup.nshを編集しないように注意
+
+9.モジュールとファームウェアをコピーする
+　(1)USBメモリにあるsRT-modules-5.17.0-rc3-next-20220207-Open-Surface-RT-g5bd2d473f01f.tar.xzをデスクトップにコピー
+　(2)sRT-modules-5.17.0-rc3-next-20220207-Open-Surface-RT-g5bd2d473f01f.tar.xzを展開(ここではデスクトップに展開)
+　(3)展開するとlibという名前のフォルダが作成される
+　(4)ターミナルからlibフォルダにあるfirmwareフォルダとmodulesフォルダを/libフォルダにコピー
+　　コマンド例)
+　　　sudo cp -r /home/[ユーザー名]/Desktop/lib/modules /media/[ユーザー名]/rootfs/lib/
+　　　sudo cp -r /home/[ユーザー名]/Desktop/lib/firmware /media/[ユーザー名]/rootfs/lib/
+　　　
+　この操作により、wifiが使用可能になる。他は知らん(wifi設定はreboot後に行う)
+　
+10.rebootする
+
+11.ここまでの操作がうまくいっていればeMMC側のrasbianがブートするはず。デスクトップが表示されたらUSBメモリを外して再度rebootする(13の時にSURFACEのロゴが表示された時点でUSBメモリを外すやり方でもOK)
+
+12.ディスク領域の拡張
+　ターミナルでsudo raspi-configと入力
+　Advanced Optionsを選択
+　Expand Filesystemを選択
+　拡張処理が始まるので待つ（完了するまで絶対に処理を止めないこと）
+　Gparted等でrootfsパーテーションが拡張されていることを確認する
+　
+13.wifi設定
+　右上の上下アイコンをクリックして国を指定する(日本でOK）
+　再度上下アイコンをクリックしてwifiの暗号キーを入力
+　

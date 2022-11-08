@@ -1,0 +1,84 @@
+
+①JailBreakの用意
+
+<JailBreakの目的>
+　SecureBootの無効化
+
+②ブータブルUSBの用意
+
+<必要ファイル>
+　usb-linux-boot.zip
+　zImage
+　tegra30-microsoft-surface-rt-efi.dtb
+
+③OSイメージをSDカードに書き込む
+
+<Raspberry Pi OS>
+　OSイメージをμSDカードに書き込み
+　Rasberry Pi Imagerを使う
+　イメージファイル用意
+
+④インストール後の設定
+
+　modulesを/lib/modulesにコピー
+　　wifi設定
+　
+　BlueTooth設定
+　　BD-MACアドレス
+　　60-45-BD-8D-75-01
+　
+　ディスク領域拡張
+　　sudo raspi-config
+　　
+　　Advanced Options
+　　Exppand FileSystem
+　　
+　SSH接続設定
+　　
+　　
+　the root account lockedの原因を解決する
+　　⇒rootのパスワードが未設定だった為設定
+　　⇒the root account lockedは出なくなったが、起動途中でCtrl+Dを2回押さないと続行しない挙動は継続中
+　　　⇒systemctl jaurnal でエラーを確認する
+　
+　デュアルブート設定
+　　sudo dd if=/dev/mmcplk1 of=grub.dd bs=512 count=1でブートセクタ引き抜き
+　　cドライブ直下にgrub.ddを配置
+　　BCDエントリ作成
+　　Windows Boot Managerに"rasp os"が表示されるが、選択するとエラー
+　　　エラーコード：0xc000007b
+　　　
+　　そもそもgrubがインストールされていないのが原因では？
+　　ubuntuのようなDistroだとインストール時にgrubのようなブートローダーがインストールされるが
+　　raspberry piはisoイメージをSDCardに書き込んだだけ。
+　　ただ、Bootパーテーションはできていた（ここにgrubがインストールされているのか？)
+　　
+　　チェーンローダーで起動？
+　　　sudo apt-get install grub2-common
+　　　
+　　zImage：圧縮されたKernelイメージ。自己解凍型
+　　
+　　https://git.kernel.org/torvalds/t/linux-5.17-rc3.tar.gz
+　　/proc/config.gz
+　　
+　　
+　　git clone https://github.com/grate-driver/linux.git --depth=1 && cd linux
+　　
+　　make ARCH=arm tegra_defconfig
+　　
+　　write add...to .config
+　　
+　　CONFIG_EFI_STUB=y 
+　　CONFIG_EFI=y
+　　CONFIG_I2C_HID_OF=y
+　　CONFIG_I2C_HOTPLUG_GPIO=y
+　　CONFIG_BATTERY_CHARGER_SURFACE_RT=y
+　　CONFIG_MWIFIEX=m
+　　CONFIG_MWIFIEX_SDIO=m
+　　CONFIG_SND_SOC_TEGRA_WM8962=y
+　　CONFIG_HID_MICROSOFT=y
+　　
+　　sudo apt-get install libssl-dev
+　　
+　　make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j $(nproc)
+　　

@@ -1,0 +1,323 @@
+■ubuntu server 20.04.5のインストール手順
+
+対象ver:20.04.5
+
+①raspberry pi imagerで起動用USBメモリ作成
+　OSの選択：Other general-purpose OS->Ubuntu->Ubuntu Server 20.04.5 LTSを選択
+　
+　■詳細設定
+　
+　ホスト名
+　SSHを有効化する->チェック
+　　パスワード認証を使う
+　ユーザー名とパスワードを設定する->チェック
+　　ユーザー名とパスワードを設定
+　Wi-Fiを設定する->チェック
+　　SSID設定:E00EE4C99F81-5G
+　　パスワード設定
+　　　⇒ここで設定したパスワードは何故か化けるので/etc/netplan/*.yamlを修正する
+　　　
+　ロケール設定をする->チェック
+　　タイムゾーン:Asia/Tokyo
+　　キーボードレイアウト:us
+　　
+　■bootパーテーション
+　　ブート用ファイルコピー
+　　startup.nsh修正
+　　　fs0:
+　　　zImage dtb=tegra30-microsoft-surface-rt-efi.dtb root=/dev/sda2 cpuidle.off=1 net.ifnames=0 rootwait initrd=initrd.img
+
+②modules,firmwareをwritable/libにコピー
+
+③USBメモリからブート
+　ログインできるか確認
+　
+④wifi有効化
+　/etc/netplan/50-cloud-init.yaml修正
+　　wlan⇒mlanに修正
+　　wifiパスワード修正
+　　SSIDとパスワードを""で囲う
+　　renderer: NetworkManager　追記 ※display manager インストール後
+　　
+　netplan適用
+　　$sudo netplan apply
+
+⑤net-toolsインストール(ifconfigとか)
+　$sudo apt-get install net-tools
+　
+⑥eMMCを初期化
+　$sudo parted /dev/mmcblk0 -s mklabel msdos
+　$sudo gdisk -l /dev/mmcblk0
+　　⇒MBRがMBR onlyになっていることを確認
+　　
+⑦USBメモリの内容をeMMCにコピー
+　$sudo dd if=/dev/sda of=/dev/mmcblk0 bs=4M
+　
+⑧eMMC側のbootパーテーションにあるstartup.nsh修正
+　$cd mnt
+　$sudo mkdir emmc1
+　$sudo mount /dev/mmcblk0p1 emmc1
+　$sudo vim emmc1/startup.nsh
+　　root=/dev/sda2⇒/dev/mmcblk0p2に変更
+　※ここで一旦シャットダウン
+
+⑨SurfaceRTを通常起動する
+　うまくいっていればeMMCからubuntuが起動する
+　
+==================================================================================================================
+10.20.04 LTS⇒22.04 LTSへのアップグレード
+==================================================================================================================
+18.04⇒20.04の場合はディスプレイマネージャーが起動しなくなった
+起動途中で真っ暗な画面から進まなない場合は電源ボタンを押下して、Ctrl+Alt+Fn+F1(F2)あたりを押下していると
+ログイン入力が表示される。その後CUI起動に変更すればOK
+
+update-manager-coreのインストール
+$sudo apt install update-manager-core
+
+apt更新
+$sudo apt update
+$sudo apt upgrade
+$sudo apt autoremove
+
+一応リブート
+$sudo reboot
+
+■release-upgradesの設定
+/etc/update-manager/release-upgradesの中でPrompt=ltsとする
+
+ssh接続ではなく直接コンソールにて
+$do-release-upgrade
+を実行する
+
+途中で「Configuring libc6」と表示された確認メッセージが表示されたら「yes」を選択
+⇒パッケージ更新の際にシステム内のサービスを再起動する必要があるが
+　その時に確認をしないで再起動するけどいいか？という確認メッセージ
+
+error:
+multipathd
+ubuntu-server
+==================================================================================================================
+
+10.デスクトップ環境のインストール
+　$sudo apt-get update
+　$sudo apt-get -y install xubuntu-desktop or lubuntu-desktop or ubuntu-mate-desktop
+　
+　※長いので注意(ubuntu-desktopは重すぎた)
+　途中でディスプレイマネージャーを選択する画面が表示されるのでgdm3を選択
+　(lightdmとの違いはよくわからない)
+　※Mateの場合はlightdmを選ぶのがベストらしい
+　
+■lubuntuの削除
+$sudo apt --purge autoremove lubuntu-desktop
+
+■CUI起動に変更する方法
+$sudo systemctl set-default multi-user
+$sudo reboot
+
+■GUI起動に変更する方法
+$sudo systemctl set-default graphical
+$sudo reboot
+
+■起動時設定の確認
+$systemctl get-default 
+
+■GUI手動起動
+$sudo systemctl start gdm3
+# LUbuntuの場合
+$sudo systemctl start sddm
+
+■cloud-init無効化
+$sudo touch /etc/cloud/cloud-init.disabled
+
+■kernelビルド
+
+ソースダウンロード
+$git clone https://github.com/grate-driver/linux.git --depth=1 && cd linux
+
+makeインストール
+$sudo apt install make
+$sudo apt install make-guile
+
+flex,bisonインストール
+$sudo apt install flex
+$sudo apt install bison
+
+default kernel config作成
+$sudo make ARCH=arm tegra_defconfig
+
+.configに以下を追記
+CONFIG_EFI_STUB=y 
+CONFIG_EFI=y
+CONFIG_I2C_HID_OF=y
+CONFIG_I2C_HOTPLUG_GPIO=y
+CONFIG_BATTERY_CHARGER_SURFACE_RT=y
+CONFIG_MWIFIEX=m
+CONFIG_MWIFIEX_SDIO=m
+CONFIG_SND_SOC_TEGRA_WM8962=y
+CONFIG_HID_MICROSOFT=y
+
+■menuconfig
+$sudo apt install ncurses-dev
+$make menuconfig
+
+　btmrvl.ko
+　btmrvl_sdio.ko
+　------------------
+　Networking support->Buletooth subsystem support->Bluetooth device drivers
+　　
+　　[*]Realtek protocol support
+　　<>HCI SDIO driver
+　　<*>HCI UART driver
+　　
+　　[*]Marvell protocol support
+　　　<M>Marvell Bluetooth driver support
+　　　<M>　Marvell BT-over-SDIO driver
+　
+　ip_tables.ko
+　------------------
+　Network packet filtering framework (Netfilter) -> IP: Netfilter Configuration
+　<M>IP tables support
+
+　Network packet filtering framework (Netfilter) -> Core Netfilter Configuration
+　<M>Netfilter nf_tables support
+　
+　
+■kernel build
+$sudo apt install libssl-dev
+$make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j $(nproc)
+
+■ビルド後作業
+
+・libフォルダバックアップ
+・モジュールエクスポート(linuxフォルダ上で実行)
+　$make INSTALL_MOD_PATH=../ modules_install > /dev/null
+
+・ブートパーテーションバックアップ
+　zImage
+　dtb=tegra30-microsoft-surface-rt-efi.dtb
+・zImageをブートパーテーションにコピー
+　sudo cp /home/ubuntu/SurfaceRT/linux/arch/arm/boot/zImage /mnt/emmc1/
+・dtb=tegra30-microsoft-surface-rt-efi.dtbをブートパーテーションにコピー
+
+-------------------
+・USBメモリでブート
+・$mount /dev/mmcblk0p2 /mnt/emmc2
+　$sudo cp -r /mnt/emmc2/lib/modules /mnt/emmc2/lib/modules.bak221028
+　$sudo cp -r /mnt/emmc2/home/ubuntu/SurfaceRT/lib/modules /mnt/emmc2/lib/
+　
+■btmrvlのロード
+$sudo depmod
+$sudo modprobe btmrvl
+
+■Bluetooth
+Bluetooth
+60:45:BD:8D:75:01
+E0:0E:E4:C9:9F:82
+7A:76:EC:44:DA:20
+
+sudo hciattach /dev/ttyTHS1 any 921600 noflow -
+sudo hciattach /dev/ttyTHS1 bcm43xx 921600 noflow -
+sudo btattach -B /dev/ttyTHS1 -P mrvl
+
+sudo modprobe btusb
+sudo modprobe brcmfmac
+
+sudo btmgmt -i hci0 public-addr 60:45:BD:8D:75:01
+
+■サービス起動確認
+service --status-all
+
+■モジュールの起動時読み込み
+/etc/modules-load.d/modules.conf
+
+■ppa追加
+sudo add-apt-repository ppa:grate-driver/ppa
+sudo apt update
+
+■ppa削除
+sudo add-apt-repository --remove ppa:grate-driver/ppa
+sudo apt update
+
+■GraphicDriver?インストール
+sudo apt install xserver-xorg-video-opentegra
+
+■SoundDriver?インストール
+sudo apt install alsa-ucm-conf
+
+■よくわからないdriver
+sudo apt install libvdpau-tegra
+
+■linux-firmware
+sudo apt install linux-firmware
+
+■lubuntu日本語化
+
+Activities -> settingを検索
+Region & Languageを選択
+Manage Installed Langagesをクリック
+Install / Remove Language...をクリック
+JapaneseをチェックしてApplyをクリック
+  Language for menus and windowsにて日本語をEnglishの上にドラッグ
+Apply System-Wideをクリック
+
+■CPU監視
+$sudo apt install sysstat
+コアごとにCPU使用率を表示
+$mpstat -P ALL
+
+■音が出ない(Ubuntu Mate)
+System Setting -> Soundを選択
+音量が0になっている箇所を調節
+
+■linux
+・rasbian
+・windowsfx
+・ubuntu-server 20.04 LTS
+　・xubuntu
+　・lubuntu
+　・mate
+
+■ホスト名を永続的に変更する
+/etc/cloud/cloud.cfgのpreserve_hostnameをtrueにする
+
+$sudo vim /etc/cloud/cloud.cfg
+
+$sudo hostnamectl set-hostname [hostname]
+
+■自動アップデートを無効にする
+自動アップデートがCPUを食っていたので無効にしてみた
+
+$sudo vim /etc/apt/apt/conf/d/20auto-upgrades
+
+以下のように変更
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+
+↓
+
+APT::Periodic::Update-Package-Lists "0";
+APT::Periodic::Unattended-Upgrade "0";
+
+■ソフトウェアの更新によりシステムを最新化
+
+事前に以下のコマンドでgrate-driverのリポジトリを追加しておく
+$sudo add-apt-repository ppa:grate-driver/ppa
+$sudo apt update
+
+[システム管理ツール]->[ソフトウェアの更新]から実行
+
+■ufwの有効化
+
+sudo ufw statusを叩くとエラーメッセージ「unable to initialize table 'filter'」が表示される件の解消
+
+1)linuxソースフォルダに移動(Kconfigがある場所)
+2)$sudo menuconfig
+3)iptable_filterを有効化
+4)カーネルビルド
+5)以下のファイルをbootパーテーションで差し替え
+　zImage
+　tegra30-microsoft-surface-rt-efi.dtb
+6)libフォルダ差し替え
+7)$sudo depmod
+8)iptable_filter.koの読み込み(恒久化必要)
+　$modprobe iptable_filter
